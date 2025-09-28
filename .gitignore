@@ -1,0 +1,30 @@
+# Virtual environments
+/env-pet-chip-reader/
+venv/
+env/
+
+# Configuration files with secrets
+.env
+rfid_cam/.env
+
+# Python cache
+__pycache__/
+*.pyc
+*.pyo
+
+# Logs
+*.log
+
+# Photos (usually uploaded to cloud)
+rfid_photos/
+/home/pi/rfid_photos/
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# Editor files
+.vscode/
+.idea/
+*.swp
+*.swo

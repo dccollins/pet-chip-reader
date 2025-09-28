@@ -1,0 +1,14 @@
+# Serial communication
+pyserial>=3.5
+
+# Configuration management
+python-dotenv>=1.0.0
+
+# SMS notifications
+twilio>=8.0.0
+
+# Email support (built-in to Python, but ensuring compatibility)
+# smtplib and ssl are part of Python standard library
+
+# Note: picamera2 must be installed via apt on Raspberry Pi OS:
+# sudo apt install python3-picamera2

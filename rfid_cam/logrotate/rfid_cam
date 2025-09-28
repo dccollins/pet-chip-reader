@@ -1,0 +1,12 @@
+/var/log/rfid_cam.log {
+    weekly
+    rotate 8
+    compress
+    delaycompress
+    missingok
+    notifempty
+    create 640 pi pi
+    postrotate
+        systemctl reload-or-restart rfid_cam >/dev/null 2>&1 || true
+    endscript
+}

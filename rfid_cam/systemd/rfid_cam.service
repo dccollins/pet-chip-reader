@@ -1,0 +1,28 @@
+[Unit]
+Description=RFID Pet Chip Reader with Dual Camera System
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+User=pi
+Group=pi
+WorkingDirectory=/home/pi/rfid_cam
+ExecStart=/usr/bin/python3 /home/pi/rfid_cam/src/a04_dualcam_notify.py
+Restart=always
+RestartSec=3
+Environment=PYTHONUNBUFFERED=1
+
+# Security settings
+NoNewPrivileges=true
+ProtectSystem=strict
+ProtectHome=read-only
+ReadWritePaths=/home/pi/rfid_photos /var/log
+PrivateTmp=true
+
+# Resource limits
+MemoryLimit=512M
+CPUQuota=80%
+
+[Install]
+WantedBy=multi-user.target
