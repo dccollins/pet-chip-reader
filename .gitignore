@@ -14,10 +14,25 @@ __pycache__/
 
 # Logs
 *.log
+batch_test.log
+rfid_cam/daily_detections.log
 
-# Photos (usually uploaded to cloud)
+# Photos and test images (usually uploaded to cloud)
 rfid_photos/
 /home/pi/rfid_photos/
+rfid_cam/photos/
+*.jpg
+*.jpeg
+*.png
+rfid_cam/hardware_test.jpg
+
+# Test output files
+test_upload.txt
+rfid_cam/test_upload.txt
+
+# Backup files
+*.backup
+rfid_cam/backup/
 
 # OS files
 .DS_Store

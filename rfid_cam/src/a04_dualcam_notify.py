@@ -15,8 +15,8 @@ import smtplib
 import ssl
 from datetime import datetime, timedelta
 from pathlib import Path
-from email.mime.text import MimeText
-from email.mime.multipart import MimeMultipart
+from email.mime.text import MIMEText
+from email.mime.multipart import MIMEMultipart
 
 import serial
 from dotenv import load_dotenv
@@ -330,7 +330,7 @@ class RFIDCameraSystem:
             return
             
         try:
-            msg = MimeMultipart()
+            msg = MIMEMultipart()
             msg['From'] = self.config['email_from']
             msg['To'] = self.config['alert_to_email']
             msg['Subject'] = f"Pet Chip Alert: {tag_id}"
@@ -345,7 +345,7 @@ class RFIDCameraSystem:
             Photos have been captured and uploaded automatically.
             """
             
-            msg.attach(MimeText(body, 'plain'))
+            msg.attach(MIMEText(body, 'plain'))
             
             # Create SMTP session
             with smtplib.SMTP(self.config['smtp_host'], self.config['smtp_port']) as server:
