@@ -488,7 +488,7 @@ class RFIDCameraSystem:
                         "content": [
                             {
                                 "type": "text",
-                                "text": "Provide a brief, factual police witness description of the animal in this image. Include: species, size/build, coat color and pattern, distinctive features. Be concise and specific. Examples: 'Medium-sized orange tabby cat with white chest and paws' or 'Small black dog with pointed ears and white markings' or 'Large gray raccoon with distinctive facial mask'. Focus only on observable facts."
+                                "text": "Look at this image and identify any animals. If you clearly see an animal, respond with a brief description like 'orange tabby cat', 'black dog', 'small brown dog', etc. If no animals are visible or you're unsure, respond exactly with 'no animals in view'. Be concise."
                             },
                             {
                                 "type": "image_url",
@@ -500,7 +500,7 @@ class RFIDCameraSystem:
                         ]
                     }
                 ],
-                "max_tokens": 50,
+                "max_tokens": 30,
                 "temperature": 0.3
             }
             
@@ -625,13 +625,16 @@ class RFIDCameraSystem:
                 
                 # Score based on AI response quality
                 score = 0
-                if animal_description:
+                if animal_description and animal_description.lower() != 'no animals in view':
                     if animal_description != 'animal':  # Generic response
                         score = 10
                         if any(word in animal_description.lower() for word in ['cat', 'dog', 'kitten', 'puppy']):
                             score += 5
                         if any(word in animal_description.lower() for word in ['black', 'white', 'brown', 'golden', 'tabby']):
                             score += 3
+                else:
+                    # No animals detected, set to None
+                    animal_description = None
                 
                 detection['animal_description'] = animal_description
                 detection['ai_score'] = score
@@ -701,8 +704,10 @@ class RFIDCameraSystem:
                 subject = "🐾 Pet Alert"
                 if animal_description:
                     body = f"🐾 Pet detected\nAnimal: {animal_description}\nChip: {chip_id}"
+                elif not photo_paths or len(photo_paths) == 0:
+                    body = f"🐾 Pet detected\nChip: {chip_id}\nNote: No image available"
                 else:
-                    body = f"🐾 Pet detected\nChip: {chip_id}"
+                    body = f"🐾 Pet detected\nChip: {chip_id}\nNote: No animals in view"
             
             # Add encounter statistics
             body += f"\nDate: {date_str}\nTime: {time_str}"
@@ -848,7 +853,9 @@ class RFIDCameraSystem:
             # Try to identify the animal if photo is available
             animal_description = None
             if photo_paths and len(photo_paths) > 0 and self.config['animal_identification']:
-                animal_description = self.identify_animal(photo_paths[0])
+                raw_description = self.identify_animal(photo_paths[0])
+                if raw_description and raw_description.lower() != 'no animals in view':
+                    animal_description = raw_description
             
             # Create message with animal identification and full date
             if is_lost_pet:
@@ -861,8 +868,10 @@ class RFIDCameraSystem:
                 subject = "🐾 Pet Alert"
                 if animal_description:
                     body = f"🐾 Pet detected\nAnimal: {animal_description}\nChip: {tag_id}\nDate: {date_str}\nTime: {time_str}"
+                elif not photo_paths or len(photo_paths) == 0:
+                    body = f"🐾 Pet detected\nChip: {tag_id}\nDate: {date_str}\nTime: {time_str}\nNote: No image available"
                 else:
-                    body = f"🐾 Pet detected\nChip: {tag_id}\nDate: {date_str}\nTime: {time_str}"
+                    body = f"🐾 Pet detected\nChip: {tag_id}\nDate: {date_str}\nTime: {time_str}\nNote: No animals in view"
             
             # Add specific photo link if available
             if photo_links and len(photo_links) > 0:
@@ -918,7 +927,7 @@ class RFIDCameraSystem:
             elif photo_paths:
                 message += f"📸 Photo captured locally (uploading...)\n"
             else:
-                message += "📸 No photo available\n"
+                message += "📸 No image available\n"
                 
 
             
