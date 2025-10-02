@@ -5,9 +5,11 @@ An advanced IoT system for Raspberry Pi 5 that monitors pet microchip readers (R
 ## ✨ Features
 
 - **🔍 Pet Chip Detection**: RBC-A04 RS-485 microchip reader support
-- **📸 Dual Camera Capture**: Automatic photo capture with Camera Module 3
+- **📸 Single/Dual Camera Capture**: Automatic photo capture with Camera Module 3
 - **🧠 Intelligent Batching**: Reduces notification spam by batching multiple detections
-- **🤖 AI Animal Identification**: OpenAI GPT-4 Vision identifies animals in photos
+- **🤖 AI Animal Identification**: OpenAI GPT-4 Vision with improved concise responses
+- **🛰️ GPS Location Tracking**: Ready for USB GPS dongles with NMEA support
+- **📄 Enhanced Metadata**: Comprehensive EXIF and JSON metadata with GPS coordinates
 - **☁️ Cloud Storage**: Automatic Google Drive upload with local backup/retry
 - **📱 Smart Notifications**: Immediate alerts + detailed encounter reports
 - **📧 SMS Gateway Support**: Clean SMS via email (no subject line clutter)
@@ -42,7 +44,7 @@ sudo apt update && sudo apt upgrade -y
 sudo apt install -y python3-picamera2 libcamera-apps rclone git
 
 # Install Python packages
-pip3 install --break-system-packages pyserial twilio python-dotenv
+pip3 install --break-system-packages pyserial twilio python-dotenv pynmea2 piexif
 ```
 
 ### 3. Clone and Configure
@@ -114,6 +116,11 @@ SMTP_PASS=your_app_password         # Gmail App Password (16 chars)
 # AI Features (Optional)
 OPENAI_API_KEY=sk-proj-your_key_here # For animal identification
 ANIMAL_IDENTIFICATION=true          # Enable AI analysis
+
+# GPS & Location (Optional)
+GPS_ENABLED=false                   # Enable when GPS dongle connected
+GPS_PORT=/dev/ttyUSB0               # GPS device port
+EMBED_METADATA=true                 # Include GPS in photo metadata
 
 # Cloud Storage (Optional)  
 RCLONE_REMOTE=gdrive                # Configured rclone remote
@@ -191,7 +198,9 @@ python3 test_immediate_notification.py
 pet-chip-reader/
 ├── rfid_cam/
 │   ├── src/
-│   │   ├── single_camera_test.py     # Main intelligent system
+│   │   ├── single_camera_test.py     # Main intelligent system (v2.1.0)
+│   │   ├── gps_manager.py           # GPS tracking with NMEA support
+│   │   ├── image_metadata_manager.py # Enhanced EXIF/JSON metadata
 │   │   └── a04_dualcam_notify.py     # Original dual camera version
 │   ├── scripts/
 │   │   ├── install.sh                # Installation script
@@ -201,6 +210,7 @@ pet-chip-reader/
 │   │   └── rfid_cam.service         # Service configuration
 │   ├── test_*.py                    # Comprehensive test suite
 │   ├── .env.example                 # Configuration template
+│   ├── GPS_METADATA_INTEGRATION.md  # GPS & metadata documentation
 │   └── backup/                      # Local photo backup
 ├── README.md                        # This file
 └── SECURITY.md                      # Security guidelines

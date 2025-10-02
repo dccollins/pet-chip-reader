@@ -714,11 +714,16 @@ class RFIDCameraSystem:
             body += f"\nRecent visits: {stats['recent_encounters']} in {stats['window_minutes']} min"
             body += f"\nTotal visits: {stats['total_encounters']}"
             
-            # Add photo link
+            # Add photo link with better fallback handling
             if photo_links and len(photo_links) > 0:
                 body += f"\nPhoto: {photo_links[0]}"
-            elif self.config['rclone_remote']:
-                body += "\nPhoto: Uploaded to Google Drive"
+            elif photo_paths and len(photo_paths) > 0:
+                if self.config['rclone_remote']:
+                    body += "\nPhoto: Captured (uploading to cloud)"
+                else:
+                    body += "\nPhoto: Captured locally"
+            else:
+                body += "\nPhoto: Not available"
             
             # Send notification
             is_sms_gateway = '@msg.fi.google.com' in self.config['alert_to_email']
@@ -921,11 +926,15 @@ class RFIDCameraSystem:
             message += f"🕐 {time_str}\n"
             message += f"🏷️ Chip: {chip_id}\n"
             
-            # Add photo link
+            # Add photo link or backup info
             if photo_links:
                 message += f"📸 {photo_links[0]}"
             elif photo_paths:
-                message += f"📸 Photo captured locally (uploading...)\n"
+                # Check if we have rclone configured
+                if self.config['rclone_remote']:
+                    message += f"📸 Photo captured (cloud upload in progress)\n"
+                else:
+                    message += f"📸 Photo captured locally\n"
             else:
                 message += "📸 No image available\n"
                 

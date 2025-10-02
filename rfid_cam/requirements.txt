@@ -7,6 +7,16 @@ python-dotenv>=1.0.0
 # SMS notifications
 twilio>=8.0.0
 
+# GPS support
+pynmea2>=1.19.0
+
+# Image metadata and EXIF handling
+Pillow>=10.0.0
+piexif>=1.1.3
+
+# HTTP requests for OpenAI API
+requests>=2.25.0
+
 # Email support (built-in to Python, but ensuring compatibility)
 # smtplib and ssl are part of Python standard library
 
