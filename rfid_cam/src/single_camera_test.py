@@ -18,7 +18,7 @@ import json
 import threading
 import queue
 from collections import defaultdict, deque
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 from pathlib import Path
 from email.mime.text import MIMEText
 from email.mime.multipart import MIMEMultipart
@@ -34,6 +34,21 @@ try:
 except ImportError:
     print("ERROR: picamera2 not installed. Run: sudo apt install python3-picamera2")
     sys.exit(1)
+
+# Import GPS and metadata managers
+try:
+    from gps_manager import GPSManager
+    GPS_AVAILABLE = True
+except ImportError:
+    GPS_AVAILABLE = False
+    print("WARNING: GPS manager not available. GPS features disabled.")
+
+try:
+    from image_metadata_manager import ImageMetadataManager
+    METADATA_AVAILABLE = True
+except ImportError:
+    METADATA_AVAILABLE = False
+    print("WARNING: Image metadata manager not available. Metadata features disabled.")
 
 
 class RFIDCameraSystem:
@@ -73,6 +88,22 @@ class RFIDCameraSystem:
         self.serial_conn = None
         self.camera = None  # Single camera for testing
         self.twilio_client = None
+        
+        # Initialize GPS and metadata managers
+        self.gps_manager = None
+        self.metadata_manager = None
+        
+        if GPS_AVAILABLE:
+            self.gps_manager = GPSManager(self.config)
+            self.logger.info("GPS Manager initialized")
+        else:
+            self.logger.info("GPS Manager not available")
+        
+        if METADATA_AVAILABLE:
+            self.metadata_manager = ImageMetadataManager(self.config)
+            self.logger.info("Image Metadata Manager initialized")
+        else:
+            self.logger.info("Image Metadata Manager not available")
         
         # Setup signal handlers
         signal.signal(signal.SIGTERM, self.signal_handler)
@@ -136,6 +167,17 @@ class RFIDCameraSystem:
             'smtp_pass': os.getenv('SMTP_PASS', ''),
             'email_from': os.getenv('EMAIL_FROM', ''),
             'alert_to_email': os.getenv('ALERT_TO_EMAIL', ''),
+            
+            # GPS Configuration
+            'GPS_ENABLED': os.getenv('GPS_ENABLED', 'false'),
+            'GPS_PORT': os.getenv('GPS_PORT', '/dev/ttyUSB0'),  # Different from RFID
+            'GPS_BAUD': os.getenv('GPS_BAUD', '9600'),
+            'GPS_TIMEOUT': os.getenv('GPS_TIMEOUT', '5.0'),
+            
+            # Image Metadata Configuration
+            'EMBED_METADATA': os.getenv('EMBED_METADATA', 'true'),
+            'SAVE_METADATA_JSON': os.getenv('SAVE_METADATA_JSON', 'true'),
+            'METADATA_QUALITY': os.getenv('METADATA_QUALITY', 'high'),
         }
         
         # Create photo directory if it doesn't exist
@@ -261,13 +303,24 @@ class RFIDCameraSystem:
         return False
         
     def capture_photo(self, tag_id):
-        """Capture photo from single camera"""
-        timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+        """Capture photo from single camera with GPS and metadata integration"""
+        capture_time = datetime.now(timezone.utc)
+        timestamp = capture_time.strftime("%Y%m%d_%H%M%S")
         photo_paths = []
         
         if not self.camera:
             self.logger.error("Camera not initialized")
             return photo_paths
+        
+        # Get GPS coordinates if available
+        gps_coordinates = None
+        gps_info = ""
+        if self.gps_manager and self.gps_manager.is_gps_available():
+            gps_coordinates = self.gps_manager.get_coordinates_for_exif()
+            gps_info = f" {self.gps_manager.get_location_string()}"
+            self.logger.info(f"GPS data available: {self.gps_manager.get_location_string()}")
+        else:
+            self.logger.debug("No GPS data available")
                 
         try:
             filename = f"{timestamp}_{tag_id}_cam0.jpg"
@@ -276,8 +329,30 @@ class RFIDCameraSystem:
             # Capture still image
             self.camera.capture_file(str(filepath))
             
+            # Process metadata if managers are available
+            if self.metadata_manager:
+                try:
+                    # Create comprehensive metadata
+                    metadata = self.metadata_manager.process_image_metadata(
+                        image_path=str(filepath),
+                        chip_id=tag_id,
+                        camera_id=0,
+                        gps_coordinates=gps_coordinates,
+                        detection_time=capture_time,
+                        additional_info={
+                            'system_version': '2.1.0-dev',
+                            'hardware': 'raspberry-pi-5',
+                            'camera_model': 'camera-module-3'
+                        }
+                    )
+                    
+                    self.logger.info(f"Metadata processed for {filename}")
+                    
+                except Exception as e:
+                    self.logger.error(f"Failed to process metadata for {filename}: {e}")
+            
             photo_paths.append(filepath)
-            self.logger.info(f"Photo saved: {filepath}")
+            self.logger.info(f"Photo saved: {filepath}{gps_info}")
             
         except Exception as e:
             self.logger.error(f"Failed to capture photo: {e}")
@@ -1216,6 +1291,18 @@ class RFIDCameraSystem:
                 self.logger.info("Camera stopped")
             except Exception as e:
                 self.logger.warning(f"Error stopping camera: {e}")
+        
+        # Stop GPS monitoring
+        if self.gps_manager:
+            try:
+                self.gps_manager.stop_gps_monitoring()
+                self.logger.info("GPS monitoring stopped")
+            except Exception as e:
+                self.logger.warning(f"Error stopping GPS monitoring: {e}")
+        
+        # Metadata manager doesn't need explicit cleanup but log status
+        if self.metadata_manager:
+            self.logger.info("Image metadata manager cleanup completed")
                 
         self.logger.info("System shutdown complete")
 
