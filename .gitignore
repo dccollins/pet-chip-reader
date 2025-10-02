@@ -6,6 +6,10 @@ env/
 # Configuration files with secrets
 .env
 rfid_cam/.env
+rfid_cam/.env.production
+rfid_cam/.env.local
+*.env.production
+*.env.local
 
 # Python cache
 __pycache__/
