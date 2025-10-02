@@ -1,6 +1,6 @@
 [Unit]
 Description=RFID Pet Chip Reader with Immediate Notifications
-After=network-online.target
+After=network-online.target dev-ttyUSB1.device
 Wants=network-online.target
 
 [Service]
@@ -8,7 +8,7 @@ Type=simple
 User=collins
 Group=collins
 WorkingDirectory=/home/collins/repos/pet-chip-reader/rfid_cam
-ExecStart=/usr/bin/python3 /home/collins/repos/pet-chip-reader/rfid_cam/src/rfid_immediate_notify.py
+ExecStart=/usr/bin/python3 /home/collins/repos/pet-chip-reader/rfid_cam/src/single_camera_test.py
 Restart=always
 RestartSec=3
 Environment=PYTHONUNBUFFERED=1
@@ -25,9 +25,6 @@ PrivateTmp=false
 # Resource limits
 MemoryMax=512M
 CPUQuota=80%
-
-# Ensure service waits for hardware to be ready
-After=network-online.target dev-ttyUSB1.device
 
 [Install]
 WantedBy=multi-user.target
