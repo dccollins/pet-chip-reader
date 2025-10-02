@@ -413,7 +413,7 @@ class RFIDCameraSystem:
                         "content": [
                             {
                                 "type": "text",
-                                "text": "Provide a brief, factual police witness description of the animal in this image. Include: species, size/build, coat color and pattern, distinctive features. Be concise and specific. Examples: 'Medium-sized orange tabby cat with white chest and paws' or 'Small black dog with pointed ears and white markings' or 'Large gray raccoon with distinctive facial mask'. Focus only on observable facts."
+                                "text": "Look at this photo and identify the animal. Respond with just a brief description like 'black cat', 'golden retriever', 'tabby cat', 'white dog', etc. Focus on the main animal in the photo. If no clear animal is visible, respond with 'animal'."
                             },
                             {
                                 "type": "image_url",
@@ -821,31 +821,21 @@ class RFIDCameraSystem:
             time_str = timestamp.strftime('%H:%M')
             date_str = timestamp.strftime('%A, %B %d, %Y')
             
-            # Analyze with AI if photo available
-            animal_description = None
-            if photo_paths:
-                self.logger.info("Analyzing photo with AI...")
-                animal_description = self.identify_animal(photo_paths[0])
-            
-            # Create notification message with AI description and full date/time
-            if animal_description:
-                message = f"🐾 {animal_description}\n"
-            else:
-                message = f"🐾 Pet detected\n"
-            
+            # Create immediate notification message with full date/time info
+            message = f"🐾 Pet detected!\n"
             message += f"📅 {date_str}\n"
             message += f"🕐 {time_str}\n"
             message += f"🏷️ Chip: {chip_id}\n"
             
-            # Add photo link
+            # Add photo link or fallback message
             if photo_links:
-                message += f"📸 {photo_links[0]}"
+                message += f"📸 Photo: {photo_links[0]}\n"
             elif photo_paths:
                 message += f"📸 Photo captured locally (uploading...)\n"
             else:
                 message += "📸 No photo available\n"
                 
-
+            message += "\n📊 Detailed encounter report coming shortly..."
             
             # Send via configured methods
             notification_sent = False
@@ -1069,8 +1059,11 @@ class RFIDCameraSystem:
         if photo_paths:
             photo_links = self.upload_photos(photo_paths)
             
-        # Send AI-enhanced notification on every detection (for testing)
-        self.send_immediate_notification(tag_id, photo_paths, photo_links)
+        # Send immediate notification if this is first contact for this chip
+        notification_key = f"{tag_id}_{datetime.now().strftime('%Y%m%d')}"
+        if notification_key not in self.immediate_notifications_sent:
+            self.send_immediate_notification(tag_id, photo_paths, photo_links)
+            self.immediate_notifications_sent.add(notification_key)
             
         # Queue detection for detailed batching
         detection = {
