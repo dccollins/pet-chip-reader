@@ -1,16 +1,19 @@
-# Pet Chip Reader with Dual Camera System
+# Pet Chip Reader - Intelligent Monitoring System
 
-A Python application for Raspberry Pi 5 that monitors an RS-485 pet microchip reader and automatically captures photos from dual Camera Module 3 units when tags are detected.
+A sophisticated Python application for Raspberry Pi 5 that monitors RS-485 pet microchip readers and automatically captures photos when tags are detected. Features intelligent batching, AI animal identification, and advanced notification systems.
 
 ## Features
 
-- **Dual Camera Support**: Captures simultaneous photos from two Raspberry Pi Camera Module 3 units
-- **Pet Microchip Detection**: Polls RBC-A04 family readers via USB-RS485 adapter
-- **Cloud Integration**: Automatic photo upload via rclone
-- **Smart Notifications**: SMS (Twilio) and email alerts for specific tags
-- **Robust Logging**: Comprehensive logging to `/var/log/rfid_cam.log` with logrotate
-- **Systemd Service**: Runs as a reliable background service with auto-restart
-- **Deduplication**: Prevents spam from repeated tag reads
+- **🧠 Intelligent Batching**: Reduces notification spam by collecting multiple detections and sending smart summaries
+- **🤖 AI Animal Identification**: OpenAI GPT-4 Vision identifies animals in photos automatically  
+- **📱 Immediate + Detailed Notifications**: Instant alerts on first contact + comprehensive encounter reports
+- **📸 Camera Module 3 Support**: High-quality photo capture with continuous autofocus
+- **☁️ Cloud Integration**: Google Drive upload with local backup and retry mechanisms
+- **📊 Encounter Statistics**: Tracks visit patterns ("Recent visits: 3 in 30 min, Total: 15")
+- **🔄 Fault Tolerance**: Local backup when cloud fails, automatic retry system
+- **📧 SMS Gateway Support**: Clean SMS via email (no subject line clutter)
+- **🛡️ Security**: Environment-based configuration, no hardcoded secrets
+- **🎯 Lost Pet Alerts**: Special notifications for registered missing pets
 
 ## Hardware Requirements
 
@@ -129,19 +132,22 @@ journalctl -u rfid_cam -f
 
 ```
 rfid_cam/
-├── README.md                    # This file
-├── requirements.txt             # Python dependencies
-├── .env.example                # Sample configuration
+├── README.md                        # This file
+├── requirements.txt                 # Python dependencies  
+├── .env.example                    # Configuration template
 ├── src/
-│   └── a04_dualcam_notify.py   # Main application
+│   ├── single_camera_test.py       # Main intelligent batching system
+│   └── a04_dualcam_notify.py      # Original dual camera version
 ├── systemd/
-│   └── rfid_cam.service        # Systemd service unit
+│   └── rfid_cam.service           # Systemd service unit
 ├── logrotate/
-│   └── rfid_cam                # Log rotation config
-└── scripts/
-    ├── install.sh              # Installation script
-    ├── test_locally.sh         # Local testing script
-    └── stop_disable.sh         # Service stop/disable script
+│   └── rfid_cam                   # Log rotation config
+├── scripts/
+│   ├── install.sh                 # Installation script
+│   ├── test_locally.sh           # Local testing script
+│   └── stop_disable.sh           # Service stop/disable script
+├── test_*.py                      # Comprehensive test suite
+└── backup/                        # Local photo backup directory
 ```
 
 ## Usage

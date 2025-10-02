@@ -360,6 +360,29 @@ class RFIDCameraSystem:
         
         # Return None if link generation failed
         return None
+        
+    def store_photos_locally(self, photo_paths):
+        """Store photos in local backup directory"""
+        backup_paths = []
+        
+        for photo_path in photo_paths:
+            try:
+                backup_path = self.local_backup_dir / photo_path.name
+                
+                # Copy to backup directory if not already there
+                if photo_path != backup_path:
+                    import shutil
+                    shutil.copy2(photo_path, backup_path)
+                    backup_paths.append(backup_path)
+                else:
+                    backup_paths.append(photo_path)
+                    
+                self.logger.info(f"Photo stored locally: {backup_path}")
+                
+            except Exception as e:
+                self.logger.error(f"Failed to backup photo {photo_path}: {e}")
+                
+        return backup_paths
     
     def identify_animal(self, photo_path):
         """Use OpenAI GPT-4 Vision to identify the animal in the photo"""
@@ -638,7 +661,56 @@ class RFIDCameraSystem:
             
         except Exception as e:
             self.logger.error(f"Failed to send batched notification: {e}")
-    
+            
+    def start_retry_processor(self):
+        """Start background thread for retrying failed uploads"""
+        if self.retry_thread and self.retry_thread.is_alive():
+            return
+            
+        self.retry_thread = threading.Thread(target=self._retry_processor_worker, daemon=True)
+        self.retry_thread.start()
+        self.logger.info("Upload retry processor started")
+        
+    def _retry_processor_worker(self):
+        """Background worker that retries failed uploads"""
+        while self.running:
+            try:
+                # Wait for failed uploads to retry
+                if not self.upload_retry_queue.empty():
+                    backup_path = self.upload_retry_queue.get(timeout=5)
+                    
+                    # Try to upload again
+                    self.logger.info(f"Retrying upload: {backup_path}")
+                    
+                    try:
+                        remote_path = f"{self.config['rclone_remote']}:{self.config['rclone_path']}"
+                        cmd = ['rclone', 'copy', str(backup_path), remote_path]
+                        
+                        result = subprocess.run(cmd, capture_output=True, text=True, timeout=30)
+                        
+                        if result.returncode == 0:
+                            self.logger.info(f"Retry upload successful: {backup_path.name}")
+                            # Remove from backup after successful upload
+                            backup_path.unlink(missing_ok=True)
+                        else:
+                            self.logger.warning(f"Retry upload failed: {backup_path.name}")
+                            # Put back in queue for next retry (with delay)
+                            time.sleep(30)  # Wait 30 seconds before re-queuing
+                            self.upload_retry_queue.put(backup_path)
+                            
+                    except Exception as e:
+                        self.logger.error(f"Retry upload error for {backup_path}: {e}")
+                        # Re-queue for later retry
+                        self.upload_retry_queue.put(backup_path)
+                        
+                else:
+                    time.sleep(5)  # Wait when queue is empty
+                    
+            except queue.Empty:
+                continue
+            except Exception as e:
+                self.logger.error(f"Retry processor error: {e}")
+                time.sleep(5)
 
     def should_notify(self, tag_id):
         """Check if we should send notifications for this tag"""

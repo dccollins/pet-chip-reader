@@ -13,16 +13,21 @@ Restart=always
 RestartSec=3
 Environment=PYTHONUNBUFFERED=1
 
-# Security settings
+# Groups for hardware access
+SupplementaryGroups=video dialout gpio
+
+# Security settings (relaxed for camera/serial access)
 NoNewPrivileges=true
-ProtectSystem=strict
-ProtectHome=read-only
-ReadWritePaths=/home/collins/rfid_photos /var/log /home/collins/repos/pet-chip-reader/rfid_cam/photos /home/collins/repos/pet-chip-reader/rfid_cam/backup
-PrivateTmp=true
+ProtectSystem=false
+ProtectHome=false
+PrivateTmp=false
 
 # Resource limits
-MemoryLimit=512M
+MemoryMax=512M
 CPUQuota=80%
+
+# Ensure service waits for hardware to be ready
+After=network-online.target dev-ttyUSB1.device
 
 [Install]
 WantedBy=multi-user.target
