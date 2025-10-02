@@ -33,7 +33,10 @@ apt install -y \
 
 # Install Python dependencies
 echo "Installing Python dependencies..."
-cd "$REAL_HOME/rfid_cam"
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+RFID_CAM_DIR="$(dirname "$SCRIPT_DIR")"
+cd "$RFID_CAM_DIR"
+echo "Working directory: $(pwd)"
 pip install --break-system-packages -r requirements.txt
 
 # Create log file with proper permissions
@@ -44,8 +47,9 @@ chmod 640 /var/log/rfid_cam.log
 
 # Create photo directory if it doesn't exist
 echo "Creating photo directory..."
-mkdir -p "$REAL_HOME/rfid_photos"
-chown $REAL_USER:$REAL_USER "$REAL_HOME/rfid_photos"
+PHOTO_DIR="${REAL_HOME}/rfid_photos"
+mkdir -p "$PHOTO_DIR"
+chown $REAL_USER:$REAL_USER "$PHOTO_DIR"
 
 # Add user to dialout group for serial access
 echo "Adding user to dialout group..."
