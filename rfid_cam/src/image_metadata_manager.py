@@ -199,10 +199,8 @@ class ImageMetadataManager:
             # Add user comment with full metadata (JSON format)
             if self.metadata_quality == 'high':
                 metadata_json = json.dumps(metadata, default=str, indent=None)
-                # Encode as bytes for UserComment
-                exif_dict['Exif'][piexif.ExifIFD.UserComment] = piexif.helper.UserComment.dump(
-                    metadata_json, encoding='unicode'
-                )
+                # Encode as bytes for UserComment (direct UTF-8 encoding)
+                exif_dict['Exif'][piexif.ExifIFD.UserComment] = metadata_json.encode('utf-8')
             
             # Save image with updated EXIF
             exif_bytes = piexif.dump(exif_dict)
@@ -346,9 +344,8 @@ class ImageMetadataManager:
                     # Extract basic metadata
                     if 'Exif' in exif_data and piexif.ExifIFD.UserComment in exif_data['Exif']:
                         try:
-                            user_comment = piexif.helper.UserComment.load(
-                                exif_data['Exif'][piexif.ExifIFD.UserComment]
-                            )
+                            user_comment_bytes = exif_data['Exif'][piexif.ExifIFD.UserComment]
+                            user_comment = user_comment_bytes.decode('utf-8')
                             metadata = json.loads(user_comment)
                         except:
                             pass

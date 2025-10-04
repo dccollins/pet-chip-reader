@@ -13,6 +13,8 @@ An advanced IoT system for Raspberry Pi 5 that monitors pet microchip readers (R
 - **☁️ Cloud Storage**: Automatic Google Drive upload with local backup/retry
 - **📱 Smart Notifications**: Immediate alerts + detailed encounter reports
 - **📧 SMS Gateway Support**: Clean SMS via email (no subject line clutter)
+- **🔄 Offline Recovery**: AI-enhanced recovery with smart digest system
+- **🎨 Enhanced Digests**: Beautiful HTML emails with Google Drive integration
 - **🔄 Fault Tolerance**: Local backup, retry mechanisms, graceful error handling
 - **📊 Encounter Statistics**: Tracks visit frequency and patterns
 - **🛡️ Security**: Environment-based configuration, no hardcoded secrets
@@ -153,6 +155,8 @@ LOST_TAG=123456789012345           # Chip ID for lost pet alerts
 
 - **Spam Reduction**: Multiple scans = 1 notification per day per chip
 - **Encounter Tracking**: "Recent visits: 3 in 30 min, Total: 15"
+- **Offline Recovery**: AI processes queued photos, creates enhanced digest emails
+- **Smart Digests**: HTML emails with pet galleries, Google Drive buttons, activity stats
 - **Fault Tolerance**: Local backup if Google Drive fails, auto-retry
 - **Lost Pet Alerts**: Special notifications for registered lost pets
 
@@ -205,6 +209,8 @@ pet-chip-reader/
 │   ├── scripts/
 │   │   ├── install.sh                # Installation script
 │   │   ├── test_locally.sh          # Local testing
+│   │   ├── process_offline_queue.py  # Enhanced offline recovery system
+│   │   ├── generate_enhanced_digest.py # Beautiful HTML digest emails
 │   │   └── stop_disable.sh          # Clean shutdown
 │   ├── systemd/
 │   │   └── rfid_cam.service         # Service configuration

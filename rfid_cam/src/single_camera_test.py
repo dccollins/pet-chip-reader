@@ -178,10 +178,27 @@ class RFIDCameraSystem:
             'EMBED_METADATA': os.getenv('EMBED_METADATA', 'true'),
             'SAVE_METADATA_JSON': os.getenv('SAVE_METADATA_JSON', 'true'),
             'METADATA_QUALITY': os.getenv('METADATA_QUALITY', 'high'),
+            
+            # Resilience Configuration
+            'ai_fallback_message': os.getenv('AI_FALLBACK_MESSAGE', 'AI analysis not available'),
+            'offline_queue_dir': os.path.join(os.getenv('PHOTO_DIR', '/home/collins/rfid_photos'), 'offline_queue'),
+            
+            # Digest Configuration
+            'digest_threshold': int(os.getenv('DIGEST_THRESHOLD', '10')),
+            'digest_max_age_hours': int(os.getenv('DIGEST_MAX_AGE_HOURS', '48')),
+            'digest_max_photos_per_chip': int(os.getenv('DIGEST_MAX_PHOTOS_PER_CHIP', '3')),
+            
+            # Daily Digest Configuration
+            'daily_digest_enabled': os.getenv('DAILY_DIGEST_ENABLED', 'true').lower() == 'true',
+            'daily_digest_time': os.getenv('DAILY_DIGEST_TIME', '18:00'),
+            'digest_email': os.getenv('DIGEST_EMAIL', 'dccollins@gmail.com'),
         }
         
         # Create photo directory if it doesn't exist
         config['photo_dir'].mkdir(parents=True, exist_ok=True)
+        
+        # Ensure offline queue directory exists
+        os.makedirs(config['offline_queue_dir'], exist_ok=True)
         
         return config
         
@@ -329,15 +346,35 @@ class RFIDCameraSystem:
             # Capture still image
             self.camera.capture_file(str(filepath))
             
-            # Process metadata if managers are available
+            # Get AI analysis if enabled
+            ai_description = None
+            if self.config['animal_identification']:
+                if not self.config['openai_api_key']:
+                    ai_description = self.config['ai_fallback_message']
+                    self.logger.info("AI analysis requested but no API key configured")
+                else:
+                    try:
+                        self.logger.info("Analyzing photo with AI...")
+                        ai_description = self.identify_animal(filepath)
+                        if ai_description:
+                            self.logger.info(f"AI analysis complete: {ai_description}")
+                        else:
+                            ai_description = self.config['ai_fallback_message']
+                            self.logger.warning("AI analysis returned empty result")
+                    except Exception as e:
+                        ai_description = self.config['ai_fallback_message']
+                        self.logger.error(f"AI analysis failed, using fallback message: {e}")
+            
+            # Process metadata if managers are available (including AI analysis)
             if self.metadata_manager:
                 try:
-                    # Create comprehensive metadata
+                    # Create comprehensive metadata with AI analysis
                     metadata = self.metadata_manager.process_image_metadata(
                         image_path=str(filepath),
                         chip_id=tag_id,
                         camera_id=0,
                         gps_coordinates=gps_coordinates,
+                        ai_description=ai_description,
                         detection_time=capture_time,
                         additional_info={
                             'system_version': '2.1.0-dev',
@@ -346,7 +383,7 @@ class RFIDCameraSystem:
                         }
                     )
                     
-                    self.logger.info(f"Metadata processed for {filename}")
+                    self.logger.info(f"Metadata processed for {filename} (AI: {'Yes' if ai_description else 'No'})")
                     
                 except Exception as e:
                     self.logger.error(f"Failed to process metadata for {filename}: {e}")
@@ -360,7 +397,7 @@ class RFIDCameraSystem:
         return photo_paths
         
     def upload_photos(self, photo_paths):
-        """Upload photos using rclone and return specific photo links, with local backup on failure"""
+        """Upload photos using rclone and return specific photo links, with offline queue on failure"""
         photo_links = []
         failed_uploads = []
         
@@ -368,6 +405,12 @@ class RFIDCameraSystem:
             self.logger.info("Rclone not configured, storing locally")
             self.store_photos_locally(photo_paths)
             return photo_links
+        
+        # Check internet connectivity first
+        if not self.check_internet_connectivity():
+            self.logger.warning("No internet connection - queuing photos for later upload")
+            self.queue_photos_for_later(photo_paths)
+            return [f"Queued for upload: {Path(p).name}" for p in photo_paths]
             
         for photo_path in photo_paths:
             try:
@@ -390,20 +433,80 @@ class RFIDCameraSystem:
                     
             except subprocess.TimeoutExpired:
                 self.logger.warning(f"Upload timeout for {photo_path.name}")
+                failed_uploads.append(photo_path)
             except Exception as e:
                 self.logger.error(f"Upload error for {photo_path.name}: {e}")
                 failed_uploads.append(photo_path)
                 
-        # Handle failed uploads
+        # Handle failed uploads - queue for retry
         if failed_uploads:
-            self.logger.info(f"Storing {len(failed_uploads)} photos locally for retry")
-            backup_paths = self.store_photos_locally(failed_uploads)
+            self.logger.info(f"Queuing {len(failed_uploads)} photos for retry")
+            self.queue_photos_for_later(failed_uploads)
             
-            # Queue for retry
+            # Also store locally as backup
+            backup_paths = self.store_photos_locally(failed_uploads)
             for backup_path in backup_paths:
                 self.upload_retry_queue.put(backup_path)
                 
         return photo_links
+    
+    def check_internet_connectivity(self, timeout=10):
+        """Check if internet is available by testing connection to Google DNS"""
+        try:
+            import socket
+            socket.create_connection(("8.8.8.8", 53), timeout=timeout)
+            return True
+        except OSError:
+            return False
+    
+    def queue_photos_for_later(self, photo_paths):
+        """Queue photos for later upload when internet is restored"""
+        queue_file = os.path.join(self.config['offline_queue_dir'], 'upload_queue.txt')
+        try:
+            with open(queue_file, 'a') as f:
+                for photo_path in photo_paths:
+                    # Copy photo to queue directory if not already there
+                    queue_photo_path = os.path.join(self.config['offline_queue_dir'], Path(photo_path).name)
+                    if not os.path.exists(queue_photo_path):
+                        import shutil
+                        shutil.copy2(photo_path, queue_photo_path)
+                    
+                    # Add to queue file with timestamp
+                    timestamp = datetime.now().isoformat()
+                    f.write(f"{timestamp}|{queue_photo_path}\n")
+            
+            self.logger.info(f"Queued {len(photo_paths)} photos for later upload")
+        except Exception as e:
+            self.logger.error(f"Failed to queue photos for later upload: {e}")
+    
+    def queue_notification_for_later(self, notification_type, data):
+        """Queue notifications for later sending when internet is restored"""
+        queue_file = os.path.join(self.config['offline_queue_dir'], 'notification_queue.json')
+        try:
+            # Load existing queue
+            notifications = []
+            if os.path.exists(queue_file):
+                try:
+                    with open(queue_file, 'r') as f:
+                        notifications = json.load(f)
+                except json.JSONDecodeError:
+                    notifications = []
+            
+            # Add new notification
+            notification = {
+                'timestamp': datetime.now().isoformat(),
+                'type': notification_type,
+                'data': data
+            }
+            notifications.append(notification)
+            
+            # Save queue
+            with open(queue_file, 'w') as f:
+                json.dump(notifications, f, indent=2)
+            
+            self.logger.info(f"Queued {notification_type} notification for later sending")
+        except Exception as e:
+            self.logger.error(f"Failed to queue notification: {e}")
     
     def get_photo_link(self, filename):
         """Get specific Google Drive link for a photo"""
@@ -488,7 +591,7 @@ class RFIDCameraSystem:
                         "content": [
                             {
                                 "type": "text",
-                                "text": "Look at this image and identify any animals and humans. If you see an animal, describe it briefly like 'orange tabby cat', 'black dog', etc. If you see a human in the foreground or very close to the animal, also describe them briefly like 'person with dark hair', 'child in blue shirt', 'adult wearing glasses', etc. If no animals are visible, respond exactly with 'no animals in view'. Be concise."
+                                "text": "Look at this image and identify any animals and humans. If you see an animal, describe it briefly like 'orange tabby cat', 'black dog', etc. If you see a human (even without animals), describe them briefly like 'person with dark hair', 'child in blue shirt', 'adult wearing glasses', etc. If you see both, describe both. If you see neither animals nor humans clearly, respond exactly with 'no animals in view'. Be concise."
                             },
                             {
                                 "type": "image_url",
@@ -823,8 +926,15 @@ class RFIDCameraSystem:
         return True
         
     def send_sms(self, tag_id):
-        """Send SMS notification via Twilio"""
+        """Send SMS notification via Twilio with resilient fallback"""
         if not self.twilio_client or not self.config['alert_to_sms']:
+            return
+        
+        # Check internet connectivity
+        if not self.check_internet_connectivity():
+            self.logger.warning("No internet connection - SMS will be queued for later")
+            message_body = f"ALERT: Pet chip {tag_id} detected at {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}"
+            self.queue_notification_for_later('sms', {'tag_id': tag_id, 'message': message_body})
             return
             
         try:
@@ -840,10 +950,20 @@ class RFIDCameraSystem:
             
         except TwilioException as e:
             self.logger.error(f"Failed to send SMS: {e}")
+            # Queue for later retry
+            message_body = f"ALERT: Pet chip {tag_id} detected at {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}"
+            self.queue_notification_for_later('sms', {'tag_id': tag_id, 'message': message_body})
             
     def send_email(self, tag_id, photo_links=None, photo_paths=None):
-        """Send email notification via SMTP"""
+        """Send email notification via SMTP with resilient fallback"""
         if not self.config['smtp_user'] or not self.config['alert_to_email']:
+            return
+        
+        # Check internet connectivity
+        if not self.check_internet_connectivity():
+            self.logger.warning("No internet connection - email will be queued for later")
+            email_data = {'tag_id': tag_id, 'photo_links': photo_links, 'photo_paths': photo_paths}
+            self.queue_notification_for_later('email', email_data)
             return
             
         try:
@@ -902,6 +1022,9 @@ class RFIDCameraSystem:
             
         except Exception as e:
             self.logger.error(f"Failed to send email: {e}")
+            # Queue for later retry
+            email_data = {'tag_id': tag_id, 'photo_links': photo_links, 'photo_paths': photo_paths}
+            self.queue_notification_for_later('email', email_data)
             
     def send_immediate_notification(self, chip_id, photo_paths, photo_links):
         """Send immediate notification when pet is first detected"""

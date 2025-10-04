@@ -14,6 +14,8 @@ A sophisticated Python application for Raspberry Pi 5 that monitors RS-485 pet m
 - **📧 SMS Gateway Support**: Clean SMS via email (no subject line clutter)
 - **🛡️ Security**: Environment-based configuration, no hardcoded secrets
 - **🎯 Lost Pet Alerts**: Special notifications for registered missing pets
+- **💪 Resilience**: Graceful handling of AI and internet outages with offline queuing
+- **🔄 Automatic Recovery**: Offline queue processor runs periodically to catch up when services return
 
 ## Hardware Requirements
 
@@ -297,6 +299,152 @@ sudo ./scripts/stop_disable.sh
 sudo ./scripts/install.sh
 ```
 
+## Resilience & Offline Operation
+
+The system is designed to continue operating even when AI services or internet connectivity are temporarily unavailable.
+
+### Offline Queue System
+
+When internet or cloud services are unavailable, the system automatically:
+
+- **Photos**: Queues photos for later upload to cloud storage
+- **Notifications**: Queues SMS and email notifications for later delivery  
+- **AI Analysis**: Uses fallback message instead of failing completely
+- **Local Storage**: Continues saving photos locally as backup
+
+### Offline Queue Management
+
+**Automatic Processing**: 
+Set up automatic queue processing every 15 minutes:
+```bash
+./scripts/setup_offline_cron.sh
+```
+
+**Manual Processing**:
+```bash
+# Process all queued items
+./scripts/process_offline_queue.py
+
+# Dry run to see what would be processed
+./scripts/process_offline_queue.py --dry-run
+
+# Process only photos or notifications
+./scripts/process_offline_queue.py --photos-only
+./scripts/process_offline_queue.py --notifications-only
+```
+
+**Monitor Queue Status**:
+```bash
+# Check if there are items in the offline queue
+ls -la /path/to/photos/offline_queue/
+
+# View processing logs
+tail -f /path/to/rfid_cam/offline_queue_processing.log
+```
+
+### AI Resilience
+
+When OpenAI services are unavailable:
+- Photos are still captured and stored
+- Metadata includes fallback message: "AI analysis not available"
+- System continues normal operation
+- AI analysis will resume when service returns
+
+### Smart Digest System
+
+When there's a large backlog of notifications (10+ by default), the system automatically switches to digest mode instead of sending individual notifications:
+
+**SMS Digest**: Concise summary with key statistics
+```
+🐾 Pet Alert Digest
+25 detections from 4 pets over 2d 6h
+Most active: ...496836 (12x)
+Pets: ...496836(12), ...345678(8), ...123456(3), ...987654(2)
+```
+
+**Email Digest**: Detailed breakdown with selected photos
+- Complete activity summary with timestamps
+- Per-pet detection counts
+- Up to 20 selected photos (3 max per pet)
+- Clear indication this covers an offline period
+
+**Configuration**:
+```bash
+DIGEST_THRESHOLD=10              # Switch to digest mode when 10+ notifications queued
+DIGEST_MAX_AGE_HOURS=48         # Consider notifications older than 48h for digest
+DIGEST_MAX_PHOTOS_PER_CHIP=3    # Max photos per pet in email digest
+```
+
+### Daily Digest Reports
+
+Automatic daily summary emails sent to your main email address every evening:
+
+**Features**:
+- Complete day's activity summary with hourly timeline
+- Per-pet detection counts and patterns
+- AI insights from the most interesting detections  
+- Visual activity timeline showing peak hours
+- Sent to your main email (not SMS gateway)
+
+**Sample Daily Report**:
+```
+Daily Pet Activity Report
+========================
+
+📅 Date: Friday, October 04, 2025
+
+📊 Activity Summary:
+• Total detections: 125
+• Unique pets: 4
+• First activity: 02:14
+• Last activity: 14:24
+• Peak activity: 04:00 hour
+
+🐾 Pet Activity:
+• ...03496836: 38 detections
+• ...89012345: 36 detections  
+• ...21098765: 28 detections
+• ...77888999: 23 detections
+
+⏰ Activity Timeline:
+04:00 │████████████████████ (92)
+14:00 │████████████████████ (26)
+13:00 │█████ (5)
+02:00 │█ (1)
+
+🤖 AI Insights:
+• 04:15 - ...496836: Orange tabby cat sitting by food bowl
+• 14:22 - ...012345: Gray cat walking through frame
+```
+
+**Setup**:
+```bash
+# Enable daily digest emails (automatic at 6 PM)
+./scripts/setup_daily_digest.sh
+
+# Test today's digest
+./scripts/generate_daily_digest.py --dry-run
+
+# Send digest manually
+./scripts/generate_daily_digest.py
+```
+
+**Configuration**:
+```bash
+DAILY_DIGEST_ENABLED=true       # Enable/disable daily digest emails
+DAILY_DIGEST_TIME=18:00         # Time to send digest (24h format)
+DIGEST_EMAIL=your@email.com     # Email address for digest reports
+```
+
+### Recovery Behavior
+
+The system automatically recovers when services return:
+- Queued photos are uploaded to cloud storage
+- Small backlogs: Individual notifications sent (marked as delayed)
+- Large backlogs: Smart digest summaries sent instead
+- AI analysis resumes for new photos
+- No manual intervention required
+
 ## Configuration Reference
 
 ### Environment Variables
@@ -314,6 +462,13 @@ sudo ./scripts/install.sh
 | `PHOTO_DIR` | `/home/pi/rfid_photos` | Local photo storage directory |
 | `RCLONE_REMOTE` | `` | Rclone remote name for uploads |
 | `RCLONE_PATH` | `rfid_photos` | Remote directory path |
+| `AI_FALLBACK_MESSAGE` | `AI analysis not available` | Message shown when AI analysis fails |
+| `DIGEST_THRESHOLD` | `10` | Notification count that triggers digest mode |
+| `DIGEST_MAX_AGE_HOURS` | `48` | Max age of notifications to include in digest |
+| `DIGEST_MAX_PHOTOS_PER_CHIP` | `3` | Max photos per pet in email digest |
+| `DAILY_DIGEST_ENABLED` | `true` | Enable automatic daily digest emails |
+| `DAILY_DIGEST_TIME` | `18:00` | Time to send daily digest (24h format) |
+| `DIGEST_EMAIL` | `dccollins@gmail.com` | Email address for digest reports |
 
 ### Logging Levels
 
