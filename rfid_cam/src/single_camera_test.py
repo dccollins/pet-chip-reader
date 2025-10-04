@@ -460,7 +460,7 @@ class RFIDCameraSystem:
         return backup_paths
     
     def identify_animal(self, photo_path):
-        """Use OpenAI GPT-4 Vision to identify the animal in the photo"""
+        """Use OpenAI GPT-4 Vision to identify animals and humans in the photo"""
         if not self.config['animal_identification'] or not self.config['openai_api_key']:
             return None
             
@@ -488,7 +488,7 @@ class RFIDCameraSystem:
                         "content": [
                             {
                                 "type": "text",
-                                "text": "Look at this image and identify any animals. If you clearly see an animal, respond with a brief description like 'orange tabby cat', 'black dog', 'small brown dog', etc. If no animals are visible or you're unsure, respond exactly with 'no animals in view'. Be concise."
+                                "text": "Look at this image and identify any animals and humans. If you see an animal, describe it briefly like 'orange tabby cat', 'black dog', etc. If you see a human in the foreground or very close to the animal, also describe them briefly like 'person with dark hair', 'child in blue shirt', 'adult wearing glasses', etc. If no animals are visible, respond exactly with 'no animals in view'. Be concise."
                             },
                             {
                                 "type": "image_url",
@@ -513,7 +513,7 @@ class RFIDCameraSystem:
                 
             if 'choices' in result and len(result['choices']) > 0:
                 animal_description = result['choices'][0]['message']['content'].strip().lower()
-                self.logger.info(f"Animal identified: {animal_description}")
+                self.logger.info(f"AI analysis result: {animal_description}")
                 return animal_description
             else:
                 self.logger.warning("No animal identification in API response")
