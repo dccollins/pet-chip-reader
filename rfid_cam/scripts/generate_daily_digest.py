@@ -18,6 +18,7 @@ from datetime import datetime, timedelta
 from pathlib import Path
 from collections import defaultdict
 from email.mime.text import MIMEText
+from email.mime.multipart import MIMEMultipart
 
 # Add the src directory to Python path
 sys.path.append(os.path.join(os.path.dirname(__file__), '..', 'src'))
@@ -155,66 +156,216 @@ class DailyDigestGenerator:
         }
     
     def create_daily_digest_email(self, analysis, target_date):
-        """Create the daily digest email content"""
+        """Create the daily digest email content with beautiful HTML formatting"""
         date_str = target_date.strftime('%A, %B %d, %Y')
         
         if analysis['total_detections'] == 0:
             subject = f"🐾 Daily Pet Report - {target_date.strftime('%B %d')} - No Activity"
-            body = f"Daily Pet Activity Report\\n"
-            body += f"========================\\n\\n"
-            body += f"📅 Date: {date_str}\\n\\n"
-            body += f"😴 No pet activity detected today.\\n"
-            body += f"All systems operating normally.\\n"
+            
+            # HTML version for no activity
+            html_body = f"""
+            <!DOCTYPE html>
+            <html>
+            <head>
+                <meta charset="UTF-8">
+                <meta name="viewport" content="width=device-width, initial-scale=1.0">
+                <title>Daily Pet Activity Report</title>
+            </head>
+            <body style="font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; line-height: 1.6; color: #333; max-width: 800px; margin: 0 auto; padding: 20px; background-color: #f9f9f9;">
+                <div style="background-color: white; padding: 30px; border-radius: 15px; box-shadow: 0 4px 6px rgba(0,0,0,0.1);">
+                    <h1 style="color: #2E8B57; text-align: center; margin-bottom: 10px; font-size: 32px;">🐾 Daily Pet Activity Report</h1>
+                    <p style="text-align: center; color: #666; margin-bottom: 30px; font-size: 18px;">{date_str}</p>
+                    <hr style="border: 2px solid #2E8B57; margin: 20px 0;">
+                    
+                    <div style="background: linear-gradient(135deg, #f0f8f0, #e8f5e8); padding: 30px; border-radius: 10px; text-align: center; border-left: 5px solid #2E8B57;">
+                        <h2 style="color: #2E8B57; margin-top: 0; font-size: 28px;">😴 No pet activity detected today</h2>
+                        <p style="font-size: 18px; color: #555;">All systems operating normally. Your pets had a quiet day!</p>
+                    </div>
+                    
+                    <hr style="margin: 30px 0; border: 1px solid #ddd;">
+                    <footer style="text-align: center; font-size: 14px; color: #888; background: linear-gradient(135deg, #f8f9fa, #e9ecef); padding: 15px; border-radius: 10px;">
+                        <p style="margin: 0;">Generated: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}<br>
+                        🔧 <strong>Pet Chip Reader System v2.1.0</strong> | Daily Digest</p>
+                    </footer>
+                </div>
+            </body>
+            </html>
+            """
+            
+            # Text fallback
+            text_body = f"Daily Pet Activity Report\\n========================\\n\\n📅 Date: {date_str}\\n\\n😴 No pet activity detected today.\\nAll systems operating normally."
+            
         else:
             subject = f"🐾 Daily Pet Report - {target_date.strftime('%B %d')} - {analysis['total_detections']} detections"
             
-            body = f"Daily Pet Activity Report\\n"
-            body += f"========================\\n\\n"
-            body += f"📅 Date: {date_str}\\n\\n"
-            
-            # Overview
-            body += f"📊 Activity Summary:\\n"
-            body += f"• Total detections: {analysis['total_detections']}\\n"
-            body += f"• Unique pets: {analysis['unique_chips']}\\n"
+            # Beautiful HTML version for activity
+            html_body = f"""
+            <!DOCTYPE html>
+            <html>
+            <head>
+                <meta charset="UTF-8">
+                <meta name="viewport" content="width=device-width, initial-scale=1.0">
+                <title>Daily Pet Activity Report</title>
+            </head>
+            <body style="font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; line-height: 1.6; color: #333; max-width: 900px; margin: 0 auto; padding: 20px; background-color: #f9f9f9;">
+                <div style="background-color: white; padding: 30px; border-radius: 15px; box-shadow: 0 4px 6px rgba(0,0,0,0.1);">
+                    <h1 style="color: #2E8B57; text-align: center; margin-bottom: 10px; font-size: 32px;">🐾 Daily Pet Activity Report</h1>
+                    <p style="text-align: center; color: #666; margin-bottom: 30px; font-size: 18px;">{date_str}</p>
+                    <hr style="border: 2px solid #2E8B57; margin: 20px 0;">
+                
+                    <div style="background: linear-gradient(135deg, #f0f8f0, #e8f5e8); padding: 25px; border-radius: 12px; margin: 20px 0; border-left: 5px solid #2E8B57;">
+                        <h2 style="margin-top: 0; color: #2E8B57; font-size: 24px;">📊 Activity Summary</h2>
+                        <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 15px; margin-top: 20px;">
+                            <div style="background-color: white; padding: 20px; border-radius: 10px; text-align: center; box-shadow: 0 3px 6px rgba(0,0,0,0.1);">
+                                <div style="font-size: 36px; font-weight: bold; color: #2E8B57;">{analysis['total_detections']}</div>
+                                <div style="color: #666; font-size: 16px; margin-top: 5px;">Total Detections</div>
+                            </div>
+                            <div style="background-color: white; padding: 20px; border-radius: 10px; text-align: center; box-shadow: 0 3px 6px rgba(0,0,0,0.1);">
+                                <div style="font-size: 36px; font-weight: bold; color: #20B2AA;">{analysis['unique_chips']}</div>
+                                <div style="color: #666; font-size: 16px; margin-top: 5px;">Unique Pets</div>
+                            </div>
+            """
             
             if analysis['first_detection'] and analysis['last_detection']:
-                body += f"• First activity: {analysis['first_detection'].strftime('%H:%M')}\\n"
-                body += f"• Last activity: {analysis['last_detection'].strftime('%H:%M')}\\n"
+                html_body += f"""
+                            <div style="background-color: white; padding: 20px; border-radius: 10px; text-align: center; box-shadow: 0 3px 6px rgba(0,0,0,0.1);">
+                                <div style="font-size: 24px; font-weight: bold; color: #FF6B6B;">{analysis['first_detection'].strftime('%H:%M')}</div>
+                                <div style="color: #666; font-size: 16px; margin-top: 5px;">First Activity</div>
+                            </div>
+                            <div style="background-color: white; padding: 20px; border-radius: 10px; text-align: center; box-shadow: 0 3px 6px rgba(0,0,0,0.1);">
+                                <div style="font-size: 24px; font-weight: bold; color: #9C27B0;">{analysis['last_detection'].strftime('%H:%M')}</div>
+                                <div style="color: #666; font-size: 16px; margin-top: 5px;">Last Activity</div>
+                            </div>
+                """
             
             if analysis['peak_hour'] is not None:
-                body += f"• Peak activity: {analysis['peak_hour']:02d}:00 hour\\n"
+                html_body += f"""
+                            <div style="background-color: white; padding: 20px; border-radius: 10px; text-align: center; box-shadow: 0 3px 6px rgba(0,0,0,0.1);">
+                                <div style="font-size: 24px; font-weight: bold; color: #FF9800;">{analysis['peak_hour']:02d}:00</div>
+                                <div style="color: #666; font-size: 16px; margin-top: 5px;">Peak Hour</div>
+                            </div>
+                """
             
-            # Per-pet breakdown
+            html_body += """
+                        </div>
+                    </div>
+            """
+            
+            # Pet activity breakdown
             if analysis['chip_summary']:
-                body += f"\\n🐾 Pet Activity:\\n"
+                html_body += """
+                    <div style="background: linear-gradient(135deg, #e8f5e8, #c8e6c8); padding: 25px; border-radius: 12px; margin: 20px 0; border-left: 5px solid #4CAF50;">
+                        <h2 style="margin-top: 0; color: #4CAF50; font-size: 24px;">🐾 Pet Activity Breakdown</h2>
+                        <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 15px;">
+                """
                 for chip_id, count in analysis['chip_summary'].items():
                     chip_display = f"...{chip_id[-8:]}" if len(chip_id) > 8 else chip_id
-                    body += f"• {chip_display}: {count} detections\\n"
+                    html_body += f"""
+                            <div style="background-color: white; padding: 20px; border-radius: 10px; box-shadow: 0 3px 6px rgba(0,0,0,0.1); border-left: 4px solid #4CAF50;">
+                                <div style="font-size: 28px; font-weight: bold; color: #4CAF50; text-align: center;">{count}</div>
+                                <div style="color: #666; font-size: 16px; text-align: center; margin-top: 5px;">Pet {chip_display}</div>
+                            </div>
+                    """
+                html_body += """
+                        </div>
+                    </div>
+                """
             
-            # Hourly activity pattern
+            # Hourly activity timeline
             if analysis['hourly_activity']:
-                body += f"\\n⏰ Activity Timeline:\\n"
+                html_body += """
+                    <div style="background: linear-gradient(135deg, #fff0f5, #ffe8f0); padding: 25px; border-radius: 12px; margin: 20px 0; border-left: 5px solid #E91E63;">
+                        <h2 style="margin-top: 0; color: #E91E63; font-size: 24px;">⏰ Hourly Activity Timeline</h2>
+                        <div style="background-color: white; padding: 25px; border-radius: 10px; box-shadow: 0 3px 6px rgba(0,0,0,0.1);">
+                """
+                max_count = max(analysis['hourly_activity'].values()) if analysis['hourly_activity'] else 1
+                
                 for hour in range(24):
-                    if hour in analysis['hourly_activity']:
-                        count = analysis['hourly_activity'][hour]
-                        if count > 0:
-                            bar = '█' * min(count, 20)  # Visual bar, max 20 chars
-                            body += f"{hour:02d}:00 │{bar} ({count})\\n"
+                    count = analysis['hourly_activity'].get(hour, 0)
+                    if count > 0:
+                        bar_width = max(int((count / max_count) * 400), 30)  # Scale to max 400px
+                        bar_color = f"rgba(233, 30, 99, {0.4 + (count / max_count) * 0.6})"
+                        
+                        html_body += f"""
+                            <div style="margin: 10px 0; display: flex; align-items: center;">
+                                <span style="display: inline-block; width: 70px; font-weight: bold; color: #333; font-size: 16px;">{hour:02d}:00</span>
+                                <div style="flex: 1; background-color: #f5f5f5; border-radius: 12px; height: 30px; margin: 0 20px; position: relative; overflow: hidden;">
+                                    <div style="width: {bar_width}px; height: 100%; background: {bar_color}; border-radius: 12px; display: flex; align-items: center; justify-content: center; transition: width 0.5s ease;"></div>
+                                </div>
+                                <span style="font-weight: bold; color: #E91E63; min-width: 50px; text-align: right; font-size: 16px;">({count})</span>
+                            </div>
+                        """
+                
+                html_body += """
+                        </div>
+                    </div>
+                """
             
-            # AI Insights
+            # AI Insights section
             if analysis['ai_descriptions']:
-                body += f"\\n🤖 AI Insights:\\n"
+                html_body += """
+                    <div style="background: linear-gradient(135deg, #f0f8ff, #e6f3ff); padding: 25px; border-radius: 12px; margin: 20px 0; border-left: 5px solid #2196F3;">
+                        <h2 style="margin-top: 0; color: #2196F3; font-size: 24px;">🤖 AI Insights</h2>
+                        <div style="background-color: white; padding: 20px; border-radius: 10px; box-shadow: 0 3px 6px rgba(0,0,0,0.1);">
+                """
                 for insight in analysis['ai_descriptions']:
+                    chip_short = f"...{insight['chip_id'][-8:]}" if len(insight['chip_id']) > 8 else insight['chip_id']
+                    html_body += f"""
+                            <div style="margin: 15px 0; padding: 15px; background-color: #f8f9fa; border-radius: 8px; border-left: 4px solid #2196F3;">
+                                <div style="font-weight: bold; color: #2196F3; margin-bottom: 5px;">
+                                    🕒 {insight['time']} - Pet {chip_short}
+                                </div>
+                                <div style="color: #555; font-style: italic; line-height: 1.5;">
+                                    "{insight['description']}"
+                                </div>
+                            </div>
+                    """
+                html_body += """
+                        </div>
+                    </div>
+                """
+            
+            html_body += f"""
+                    <hr style="margin: 30px 0; border: 2px solid #ddd;">
+                    <footer style="text-align: center; font-size: 14px; color: #888; background: linear-gradient(135deg, #f8f9fa, #e9ecef); padding: 20px; border-radius: 10px;">
+                        <p style="margin: 0; line-height: 1.6;">
+                            <strong>Generated:</strong> {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}<br>
+                            🔧 <strong>Pet Chip Reader System v2.1.0</strong> | Daily Digest<br>
+                            📧 Delivered to: {self.config.get('digest_email', 'Unknown')}
+                        </p>
+                    </footer>
+                </div>
+            </body>
+            </html>
+            """
+            
+            # Text fallback
+            text_body = f"Daily Pet Activity Report\\n========================\\n\\n📅 Date: {date_str}\\n\\n"
+            text_body += f"📊 Activity Summary:\\n• Total detections: {analysis['total_detections']}\\n• Unique pets: {analysis['unique_chips']}\\n"
+            
+            if analysis['first_detection'] and analysis['last_detection']:
+                text_body += f"• First activity: {analysis['first_detection'].strftime('%H:%M')}\\n"
+                text_body += f"• Last activity: {analysis['last_detection'].strftime('%H:%M')}\\n"
+            
+            if analysis['peak_hour'] is not None:
+                text_body += f"• Peak activity: {analysis['peak_hour']:02d}:00 hour\\n"
+            
+            if analysis['chip_summary']:
+                text_body += f"\\n🐾 Pet Activity:\\n"
+                for chip_id, count in analysis['chip_summary'].items():
+                    chip_display = f"...{chip_id[-8:]}" if len(chip_id) > 8 else chip_id
+                    text_body += f"• {chip_display}: {count} detections\\n"
+            
+            if analysis['ai_descriptions']:
+                text_body += f"\\n🤖 AI Insights:\\n"
+                for insight in analysis['ai_descriptions'][:5]:  # Limit to 5 for text version
                     chip_short = f"...{insight['chip_id'][-6:]}" if len(insight['chip_id']) > 6 else insight['chip_id']
-                    body += f"• {insight['time']} - {chip_short}: {insight['description']}\\n"
+                    text_body += f"• {insight['time']} - {chip_short}: {insight['description']}\\n"
         
-        body += f"\\n📈 Generated: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}\\n"
-        body += f"🔧 Pet Chip Reader System v2.1.0\\n"
-        
-        return {'subject': subject, 'body': body}
+        return {'subject': subject, 'html_body': html_body, 'text_body': text_body}
     
     def send_daily_digest(self, digest_data, dry_run=False):
-        """Send the daily digest email"""
+        """Send the daily digest email with beautiful HTML formatting"""
         if not self.config['daily_digest_enabled']:
             print("Daily digest is disabled in configuration")
             return False
@@ -224,24 +375,35 @@ class DailyDigestGenerator:
             return False
         
         if dry_run:
-            print("DRY RUN - Would send email:")
+            print("DRY RUN - Would send HTML email:")
             print(f"To: {self.config['digest_email']}")
             print(f"Subject: {digest_data['subject']}")
-            print(f"Body:\\n{digest_data['body']}")
+            print(f"HTML Body length: {len(digest_data.get('html_body', ''))} characters")
+            print(f"Text fallback length: {len(digest_data.get('text_body', ''))} characters")
             return True
         
         try:
-            msg = MIMEText(digest_data['body'])
+            # Create multipart message for HTML + text
+            msg = MIMEMultipart('alternative')
             msg['From'] = self.config['email_from']
             msg['To'] = self.config['digest_email']
             msg['Subject'] = digest_data['subject']
             
+            # Add text version as fallback
+            text_part = MIMEText(digest_data['text_body'], 'plain')
+            msg.attach(text_part)
+            
+            # Add HTML version (preferred)
+            html_part = MIMEText(digest_data['html_body'], 'html')
+            msg.attach(html_part)
+            
+            # Send email
             with smtplib.SMTP(self.config['smtp_host'], self.config['smtp_port']) as server:
                 server.starttls()
                 server.login(self.config['smtp_user'], self.config['smtp_pass'])
                 server.send_message(msg)
             
-            print(f"✓ Daily digest sent to {self.config['digest_email']}")
+            print(f"✓ Beautiful HTML daily digest sent to {self.config['digest_email']}")
             return True
             
         except Exception as e:
