@@ -8,7 +8,7 @@ Type=simple
 User=collins
 Group=collins
 WorkingDirectory=/home/collins/repos/pet-chip-reader/rfid_cam
-ExecStart=/usr/bin/python3 /home/collins/repos/pet-chip-reader/rfid_cam/src/single_camera_test.py
+ExecStart=/usr/bin/python3 /home/collins/repos/pet-chip-reader/rfid_cam/src/a04_dualcam_notify.py
 Restart=always
 RestartSec=3
 Environment=PYTHONUNBUFFERED=1

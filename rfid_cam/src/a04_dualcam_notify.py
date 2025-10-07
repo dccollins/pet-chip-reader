@@ -29,6 +29,21 @@ except ImportError:
     print("ERROR: picamera2 not installed. Run: sudo apt install python3-picamera2")
     sys.exit(1)
 
+# Import GPS and metadata managers (optional)
+try:
+    from gps_manager import GPSManager
+    GPS_AVAILABLE = True
+except ImportError:
+    GPS_AVAILABLE = False
+    print("WARNING: GPS manager not available. GPS features disabled.")
+
+try:
+    from image_metadata_manager import ImageMetadataManager
+    METADATA_AVAILABLE = True
+except ImportError:
+    METADATA_AVAILABLE = False
+    print("WARNING: Image metadata manager not available. Metadata features disabled.")
+
 
 class RFIDCameraSystem:
     """Main application class for RFID camera system"""
@@ -53,6 +68,18 @@ class RFIDCameraSystem:
         self.serial_conn = None
         self.cameras = {}
         self.twilio_client = None
+        
+        # Initialize GPS and metadata managers
+        self.gps_manager = None
+        self.metadata_manager = None
+        
+        if GPS_AVAILABLE:
+            self.gps_manager = GPSManager(self.config)
+            self.logger.info("GPS Manager initialized")
+        
+        if METADATA_AVAILABLE:
+            self.metadata_manager = ImageMetadataManager(self.config)
+            self.logger.info("Image Metadata Manager initialized")
         
         # Setup signal handlers
         signal.signal(signal.SIGTERM, self.signal_handler)
@@ -106,6 +133,17 @@ class RFIDCameraSystem:
             'smtp_pass': os.getenv('SMTP_PASS', ''),
             'email_from': os.getenv('EMAIL_FROM', ''),
             'alert_to_email': os.getenv('ALERT_TO_EMAIL', ''),
+            
+            # GPS Configuration (optional) - keep as strings for GPS manager compatibility
+            'GPS_ENABLED': os.getenv('GPS_ENABLED', 'false'),
+            'GPS_PORT': os.getenv('GPS_PORT', '/dev/ttyACM0'),
+            'GPS_BAUD': int(os.getenv('GPS_BAUD', '9600')),
+            'GPS_TIMEOUT': float(os.getenv('GPS_TIMEOUT', '5.0')),
+            
+            # Metadata Configuration - keep as strings for metadata manager compatibility
+            'EMBED_METADATA': os.getenv('EMBED_METADATA', 'true'),
+            'SAVE_METADATA_JSON': os.getenv('SAVE_METADATA_JSON', 'true'),
+            'METADATA_QUALITY': os.getenv('METADATA_QUALITY', 'high'),
         }
         
         # Create photo directory if it doesn't exist
@@ -242,9 +280,14 @@ class RFIDCameraSystem:
         return False
         
     def capture_photos(self, tag_id):
-        """Capture photos from both cameras"""
+        """Capture photos from both cameras with GPS and metadata"""
         timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
         photo_paths = []
+        
+        # Get GPS coordinates if available
+        gps_coordinates = None
+        if self.gps_manager:
+            gps_coordinates = self.gps_manager.get_current_location()
         
         for cam_id in [0, 1]:
             if cam_id not in self.cameras:
@@ -258,8 +301,28 @@ class RFIDCameraSystem:
                 # Capture still image
                 self.cameras[cam_id].capture_file(str(filepath))
                 
+                # Add metadata if available
+                if self.metadata_manager and filepath.exists():
+                    try:
+                        # Create metadata for this photo
+                        metadata = {
+                            'chip_id': tag_id,
+                            'camera_id': cam_id,
+                            'timestamp': timestamp,
+                            'gps_coordinates': gps_coordinates,
+                            'system_version': 'v2.1.0',
+                        }
+                        
+                        # Embed metadata in photo and save JSON
+                        self.metadata_manager.add_metadata_to_photo(
+                            str(filepath), metadata, gps_coordinates
+                        )
+                        
+                    except Exception as e:
+                        self.logger.warning(f"Failed to add metadata to {filepath}: {e}")
+                
                 photo_paths.append(filepath)
-                self.logger.info(f"Photo saved: {filepath}")
+                self.logger.info(f"Photo saved with metadata: {filepath}")
                 
             except Exception as e:
                 self.logger.error(f"Failed to capture photo from camera {cam_id}: {e}")
@@ -435,6 +498,22 @@ class RFIDCameraSystem:
     def cleanup(self):
         """Clean up resources"""
         self.logger.info("Cleaning up resources...")
+        
+        # Close GPS manager
+        if self.gps_manager:
+            try:
+                self.gps_manager.close()
+                self.logger.info("GPS manager closed")
+            except Exception as e:
+                self.logger.warning(f"Error closing GPS manager: {e}")
+        
+        # Close metadata manager
+        if self.metadata_manager:
+            try:
+                self.metadata_manager.close()
+                self.logger.info("Metadata manager closed")
+            except Exception as e:
+                self.logger.warning(f"Error closing metadata manager: {e}")
         
         # Close serial connection
         if self.serial_conn and self.serial_conn.is_open:
