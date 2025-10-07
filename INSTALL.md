@@ -1,4 +1,4 @@
-# 🐾 Pet Chip Reader Installation Guide
+# 🐾 Pet Chip Reader Installation Guide v2.2.0
 
 ## Quick Installation
 
@@ -28,12 +28,12 @@ This comprehensive script will:
 - **Serial communication** utilities
 
 ### Python Packages
-- **pyserial** - RBC-A04 chip reader communication
+- **pyserial** - RBC-A04 chip reader communication (ultra-fast 50ms polling)
 - **python-dotenv** - Configuration management
-- **requests** - OpenAI API integration
+- **openai** - GPT-4 Vision API for individual camera analysis
 - **Pillow + piexif** - Image processing and EXIF metadata
-- **twilio** - SMS notifications
-- **pynmea2** - GPS support (future enhancement)
+- **twilio** - SMS notifications via carrier gateway
+- **pynmea2** - GPS support (infrastructure ready)
 
 ### Hardware Configuration
 - Camera interface enabled in `/boot/firmware/config.txt`
@@ -52,21 +52,20 @@ sudo nano ./rfid_cam/.env
 
 **Required Settings:**
 ```env
-# OpenAI API for AI animal identification
+# Ultra-fast response configuration (v2.2.0)
+POLL_INTERVAL=0.05          # 50ms polling for instant detection
+DEDUPE_SECONDS=0            # Disabled for immediate testing
+ANIMAL_IDENTIFICATION=true   # Enable AI analysis per camera
+
+# OpenAI GPT-4 Vision API for individual camera analysis
 OPENAI_API_KEY=your_openai_api_key_here
 
-# Email/SMS notifications
+# SMS via Gmail carrier gateway
 SMTP_HOST=smtp.gmail.com
 SMTP_PORT=587
 SMTP_USER=your_email@gmail.com
 SMTP_PASS=your_app_password
-ALERT_TO_EMAIL=notifications@example.com
-
-# Twilio SMS (optional)
-TWILIO_ACCOUNT_SID=your_twilio_sid
-TWILIO_AUTH_TOKEN=your_twilio_token
-TWILIO_PHONE_FROM=+1234567890
-TWILIO_PHONE_TO=+1987654321
+ALERT_TO_EMAIL=your_phone@msg.fi.google.com
 ```
 
 ### 2. Set Up Cloud Storage
@@ -116,13 +115,14 @@ journalctl -u rfid_cam -f
 ### RBC-A04 Chip Reader
 - Connect to Raspberry Pi via USB-to-RS485 adapter
 - Default port: `/dev/ttyUSB1`
-- Baud rate: 9600
-- Protocol: Standard FDX-B microchip reading
+- Baud rate: 9600, 200ms timeout (5x faster than v2.1.0)
+- Protocol: Standard FDX-B microchip reading with 50ms polling
 
-### Camera Module 3
-- Connect to CSI-1 or CSI-2 port on Raspberry Pi 5
-- Autofocus enabled for sharp pet photos
-- Resolution: 2304x1296 for detailed images
+### Dual Camera Module 3 Setup
+- Camera 0: CSI-1 port, Camera 1: CSI-2 port
+- Continuous autofocus enabled (AfMode: 2) for sharp captures
+- Still resolution: 2304x1296 for detailed AI analysis
+- Individual AI analysis per camera with smart summaries
 
 ### Optional: GPS Module
 - USB GPS dongle support ready for location tracking

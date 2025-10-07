@@ -1,22 +1,37 @@
-# 🐾 Pet Chip Reader - Intelligent Monitoring System
+# 🐾 Pet Chip Reader - Ultra-Fast Intelligent Monitoring System
 
-An advanced IoT system for Raspberry Pi 5 that monitors pet microchip readers (RBC-A04 family) and automatically captures photos when pets are detected. Features intelligent batching, AI animal identification, cloud storage, and smart notifications.
+A high-performance IoT system for Raspberry Pi 5 with **50ms response time** that monitors pet microchip readers (RBC-A04 family) and automatically captures photos from **dual cameras** when pets are detected. Features **individual AI analysis per camera**, robust upload system with retry logic, sequential processing workflow, and professional SMS notifications.
 
 ## ✨ Features
 
-- **🔍 Pet Chip Detection**: RBC-A04 RS-485 microchip reader support
-- **📸 Single/Dual Camera Capture**: Automatic photo capture with Camera Module 3
-- **🧠 Intelligent Batching**: Reduces notification spam by batching multiple detections
-- **🤖 AI Animal Identification**: OpenAI GPT-4 Vision with improved concise responses
-- **🛰️ GPS Location Tracking**: Ready for USB GPS dongles with NMEA support
+### ⚡ **Ultra-Fast Performance**
+- **🔍 50ms Response Time**: 10x faster chip detection (vs 500ms previously)
+- **📸 Dual Camera System**: Simultaneous capture from 2x Camera Module 3
+- **⚡ Sequential Processing**: Capture → Upload → AI Analysis → Complete Notification
+
+### 🤖 **Advanced AI Analysis**
+- **👁️ Individual Photo Analysis**: Each camera gets separate AI description
+- **📊 Smart AI Summaries**: Overall findings across both cameras
+- **🎯 Concise Responses**: "no animals seen" when appropriate
+- **� Professional Format**: AI Summary + individual photo descriptions
+
+### 📤 **Robust Upload System**
+- **� 3-Attempt Retry Logic**: 60-second timeout with automatic retries
+- **📊 Upload Status Tracking**: "2/2 photos uploaded" status in SMS
+- **🔗 Real Google Drive Links**: Working clickable links with proper file IDs
+- **💾 Local Backup**: Photos preserved during upload failures
+
+### 📱 **Professional Notifications**
+- **� SMS via Email Gateway**: Clean format without subject line clutter
+- **🔗 Working Photo Links**: Each camera result with individual AI description
+- **⬆️ Upload Status**: Clear indication when some photos fail to upload
+- **⏱️ Complete Workflow**: Notifications sent only after all processing finished
+
+### 🛰️ **Enhanced Infrastructure** 
+- **�️ GPS Location Tracking**: Ready for USB GPS dongles with NMEA support
 - **📄 Enhanced Metadata**: Comprehensive EXIF and JSON metadata with GPS coordinates
-- **☁️ Cloud Storage**: Automatic Google Drive upload with local backup/retry
-- **📱 Smart Notifications**: Immediate alerts + detailed encounter reports
-- **📧 SMS Gateway Support**: Clean SMS via email (no subject line clutter)
 - **🔄 Offline Recovery**: AI-enhanced recovery with smart digest system
 - **🎨 Enhanced Digests**: Beautiful HTML emails with Google Drive integration
-- **🔄 Fault Tolerance**: Local backup, retry mechanisms, graceful error handling
-- **📊 Encounter Statistics**: Tracks visit frequency and patterns
 - **🛡️ Security**: Environment-based configuration, no hardcoded secrets
 
 ## 🚀 Quick Start
@@ -130,6 +145,14 @@ RCLONE_PATH=rfid_photos            # Drive folder path
 
 # Pet Management
 LOST_TAG=123456789012345           # Chip ID for lost pet alerts
+
+# Performance Settings (Ultra-Fast Mode)
+POLL_INTERVAL=0.05                 # 50ms polling (10x faster than default)
+DEDUPE_SECONDS=0                   # Disabled for testing (process every scan)
+
+# Performance Settings (Ultra-Fast Mode)
+POLL_INTERVAL=0.05                 # 50ms polling (10x faster than default)
+DEDUPE_SECONDS=0                   # Disabled for testing (process every scan)
 ```
 
 ### SMS Gateway Setup
@@ -202,10 +225,10 @@ python3 test_immediate_notification.py
 pet-chip-reader/
 ├── rfid_cam/
 │   ├── src/
-│   │   ├── single_camera_test.py     # Main intelligent system (v2.1.0)
+│   │   ├── a04_dualcam_notify.py     # Main dual camera system (v2.2.0) - ACTIVE
+│   │   ├── single_camera_test.py     # Legacy single camera system (v2.1.0)
 │   │   ├── gps_manager.py           # GPS tracking with NMEA support
-│   │   ├── image_metadata_manager.py # Enhanced EXIF/JSON metadata
-│   │   └── a04_dualcam_notify.py     # Original dual camera version
+│   │   └── image_metadata_manager.py # Enhanced EXIF/JSON metadata
 │   ├── scripts/
 │   │   ├── install.sh                # Installation script
 │   │   ├── test_locally.sh          # Local testing

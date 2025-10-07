@@ -1,14 +1,19 @@
-# 🔐 Security Guide for Pet Chip Reader
+# 🔐 Security Guide for Pet Chip Reader v2.2.0
 
 ## ⚠️ IMPORTANT SECURITY NOTICE
 
 **NEVER commit `.env` files with real credentials to version control!**
 
 GitLab/GitHub will scan for exposed secrets and warn you if they detect:
-- API keys (OpenAI, Twilio, etc.)
-- SMTP passwords
+- API keys (OpenAI GPT-4 Vision, etc.)
+- Gmail App Passwords (for SMS gateway)
 - Authentication tokens
 - Private keys
+
+**Current Active Features Using Credentials:**
+- OpenAI GPT-4 Vision API for individual camera analysis
+- Gmail SMTP for SMS via carrier gateway (@msg.fi.google.com)
+- Google Drive integration via rclone for photo storage
 
 ## 🛡️ Secure Configuration Steps
 

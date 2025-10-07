@@ -2,20 +2,24 @@
 
 ## Project Overview
 
-This is a Raspberry Pi 5 IoT system that monitors pet microchip readers (RBC-A04 family) and automatically captures photos from dual cameras when pets are detected. The system provides cloud upload, SMS/email notifications, and robust logging.
+This is a **high-performance** Raspberry Pi 5 IoT system with **50ms response time** that monitors pet microchip readers (RBC-A04 family) and automatically captures photos from dual cameras when pets are detected. Features **individual AI analysis per camera**, robust upload system with retry logic, sequential processing workflow, and professional SMS notifications with working Google Drive links.
 
 ## Architecture
 
 **Main Components:**
-- `rfid_cam/src/a04_dualcam_notify.py` - Core application with serial polling, dual camera capture, and notification logic
+- `rfid_cam/src/a04_dualcam_notify.py` - **ACTIVE v2.2.0** Ultra-fast dual camera system with individual AI analysis
 - `rfid_cam/systemd/rfid_cam.service` - Systemd service for reliable background operation
 - `rfid_cam/scripts/` - Installation, testing, and management utilities
+- `PROJECT_INDEX.md` - **CRITICAL**: Complete implementation index to avoid reinventing features
 
 **Key Design Patterns:**
-- **State-based deduplication**: Uses `last_tag_time` dict to prevent duplicate processing within `DEDUPE_SECONDS`
-- **Notification deduplication**: Separate 60-second cooldown for SMS/email alerts via `last_notification_time`
+- **Ultra-fast polling**: 50ms intervals (10x faster than original 500ms)
+- **Sequential processing**: Capture → Upload → AI Analysis → Complete Notification
+- **Individual AI analysis**: Each camera gets separate AI description + smart summary
+- **Robust upload system**: 3-attempt retry logic with 60-second timeouts
+- **Deduplication disabled**: Currently processes every scan for immediate testing
 - **Graceful shutdown**: Signal handlers for SIGTERM/SIGINT with proper resource cleanup
-- **Robust error handling**: Serial communication failures don't crash the service (5s retry delay)
+- **Comprehensive error handling**: Upload failures, AI errors, and connectivity issues
 
 ## Hardware Integration
 
@@ -53,12 +57,31 @@ sudo ./scripts/stop_disable.sh  # Clean shutdown
 ## Configuration Patterns
 
 **Environment-based config**: All settings in `.env` file, loaded via `python-dotenv`
+- **Performance settings**: `POLL_INTERVAL=0.05` (50ms), `DEDUPE_SECONDS=0` (disabled)
 - Serial settings: `PORT`, `BAUD`, `POLL_ADDR`, `POLL_FMT` 
-- Behavior: `POLL_INTERVAL`, `DEDUPE_SECONDS`, `CAPTURE_ON_ANY`
-- Notifications: `LOST_TAG` (specific chip ID), Twilio/SMTP credentials
+- AI settings: `OPENAI_API_KEY`, `ANIMAL_IDENTIFICATION=true`
+- Notifications: `LOST_TAG`, SMS via email gateway (`@msg.fi.google.com`)
 - Storage: `PHOTO_DIR`, `RCLONE_REMOTE`, `RCLONE_PATH`
 
 **Photo naming convention**: `YYYYmmdd_HHMMSS_{chip_id}_cam{0|1}.jpg`
+
+## ⚠️ **CRITICAL: Avoiding Feature Duplication**
+
+**ALWAYS CHECK BEFORE IMPLEMENTING:**
+1. **`PROJECT_INDEX.md`** - Complete feature inventory with locations and status
+2. **Existing implementations** - Many features already exist and work well
+3. **Test files** - `test_*.py` files show working examples of most features
+4. **Documentation** - Multiple `.md` files contain implementation details
+
+**Major features already implemented:**
+- Ultra-fast response system (50ms polling)
+- Individual AI analysis per camera with summaries  
+- Robust upload system with retry logic and status tracking
+- Professional SMS notifications with working Google Drive links
+- Sequential processing workflow
+- HTML daily digest emails
+- GPS & metadata infrastructure (ready for hardware)
+- Offline recovery and resilience systems
 
 ## Critical Dependencies
 
